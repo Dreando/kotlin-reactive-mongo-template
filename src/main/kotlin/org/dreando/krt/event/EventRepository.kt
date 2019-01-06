@@ -21,33 +21,30 @@ class EventRepository(private val reactiveMongoOperations: ReactiveMongoOperatio
                 .subscribe()
     }
 
-    fun select(eventQueryOptions: EventQueryOptions): Flux<Event> {
-
-        val query = Query().apply {
-
-            eventQueryOptions.criteria().forEach { criteria ->
-                this.addCriteria(criteria)
-            }
-
-            eventQueryOptions.sort()?.let {
-                this.with(it)
-            }
-
-            eventQueryOptions.pageable()?.let {
-                this.with(it)
-            }
-        }
-
-
-        return reactiveMongoOperations.find(query, Event::class.java)
+    fun find(eventQueryOptions: EventQueryOptions): Flux<Event> {
+        return reactiveMongoOperations.find(sortPageableCriteriaQuery(eventQueryOptions), Event::class.java)
     }
 
     fun count(eventQueryOptions: EventQueryOptions): Mono<Long> {
-        val query = Query().apply {
+        return reactiveMongoOperations.count(criteriaQuery(eventQueryOptions), Event::class.java)
+    }
+
+    private fun sortPageableCriteriaQuery(eventQueryOptions: EventQueryOptions): Query {
+        return criteriaQuery(eventQueryOptions).apply {
+            eventQueryOptions.sort?.let {
+                this.with(it)
+            }
+            eventQueryOptions.pageable?.let {
+                this.with(it)
+            }
+        }
+    }
+
+    private fun criteriaQuery(eventQueryOptions: EventQueryOptions): Query {
+        return Query().apply {
             eventQueryOptions.criteria().forEach { criteria ->
                 this.addCriteria(criteria)
             }
         }
-        return reactiveMongoOperations.count(query, Event::class.java)
     }
 }

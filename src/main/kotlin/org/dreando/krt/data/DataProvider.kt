@@ -16,12 +16,16 @@ class DataProvider(private val eventRepository: EventRepository) {
 
     private val logger = LoggerFactory.getLogger(DataProvider::class.java)
 
-    private val tags = arrayOf("accident", "road-closure", "marathon", "concert", "fire", "flood")
+    private val tags = arrayOf("accident", "marathon", "concert", "fire", "flood")
 
     private val random = Random()
+    // Lodz, Poland
     private val centerX: Double = 51.758299
     private val centerY: Double = 19.4555023
-    private val radiusMeters: Int = 25 * 1000
+    private val radiusMeters: Int = 1000 * 1000
+
+    private val chunkSize = 20000
+    private val recordsToInsert = 1000000
 
     @PostConstruct
     fun init() {
@@ -30,9 +34,12 @@ class DataProvider(private val eventRepository: EventRepository) {
     }
 
     private fun initRepo() {
-        eventRepository.insert(IntRange(1, 1000).map { index ->
+        IntRange(1, recordsToInsert).map { index ->
             buildEvent(index)
-        })
+        }.chunked(chunkSize).forEach { chunk ->
+            eventRepository.insert(chunk)
+            logger.info("Inserted chunk of $chunkSize items")
+        }
     }
 
     private fun buildEvent(index: Int): Event {
@@ -40,9 +47,7 @@ class DataProvider(private val eventRepository: EventRepository) {
                 name = "Event-$index",
                 tags = randomTags(),
                 point = randomGeoPoint()
-        ).also { event ->
-            logger.info("Created event: $event")
-        }
+        )
     }
 
     private fun randomGeoPoint(): GeoJsonPoint {
@@ -65,8 +70,8 @@ class DataProvider(private val eventRepository: EventRepository) {
     }
 
     private fun randomTags(): List<Tag> {
-        return IntRange(0, random.nextInt(tags.size)).map {
-            Tag(tags[random.nextInt(6)])
+        return IntRange(0, random.nextInt(3)).map {
+            Tag(tags[random.nextInt(tags.size - 1)])
         }.distinct()
     }
 }
