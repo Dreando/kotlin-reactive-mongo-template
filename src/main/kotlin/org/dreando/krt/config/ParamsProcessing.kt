@@ -4,9 +4,26 @@ import org.dreando.krt.exception.WrongParamFormatException
 import org.springframework.data.domain.PageRequest
 import org.springframework.data.domain.Sort
 import org.springframework.data.geo.*
+import org.springframework.data.mongodb.core.geo.GeoJsonPolygon
 import org.springframework.util.MultiValueMap
 
 typealias QueryParams = MultiValueMap<String, String>
+
+internal fun QueryParams.getPolygon(): GeoJsonPolygon? {
+    try {
+        return getString("polygon")
+                ?.split(",")
+                ?.chunked(2)
+                ?.map { latLonStrings ->
+                    Point(latLonStrings[0].toDouble(), latLonStrings[1].toDouble())
+                }?.let { points ->
+                    GeoJsonPolygon(points)
+                }
+    } catch (exception: Exception) {
+        throw WrongParamFormatException("Polygon expects format 'point1Lat,point1Lon,...pointNLat,pointNLon'")
+    }
+
+}
 
 internal fun QueryParams.getBoundingSphere(): Circle? {
     val boundingCircle = this.getString("boundingSphere")
@@ -18,7 +35,7 @@ internal fun QueryParams.getBoundingSphere(): Circle? {
             val radiusInMeters = parts[2].toInt()
             return Circle(Point(centerLongitude, centerLatitude), Distance((radiusInMeters / 1000.0), Metrics.KILOMETERS))
         } catch (exception: Exception) {
-            WrongParamFormatException("BoundingSphere expects format 'centerLongitude,centerLatitude,radiusInMeters'")
+            throw WrongParamFormatException("BoundingSphere expects format 'centerLatitude, centerLongitude,radiusInMeters'")
         }
     }
     return null
@@ -35,7 +52,7 @@ internal fun QueryParams.getBoundingBox(): Box? {
             val secondPointY = parts[3].toDouble()
             return Box(Point(firstPointX, firstPointY), Point(secondPointX, secondPointY))
         } catch (exception: Exception) {
-            WrongParamFormatException("BoundingSphere expects format 'centerLongitude,centerLatitude,radiusInMeters'")
+            throw WrongParamFormatException("BoundingSphere expects format 'centerLatitude,centerLongitude,radiusInMeters'")
         }
     }
     return null

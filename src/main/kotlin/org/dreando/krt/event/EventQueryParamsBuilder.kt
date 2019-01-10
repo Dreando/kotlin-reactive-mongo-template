@@ -16,7 +16,8 @@ class EventQueryParamsBuilder {
                 boundingSphere = queryParams.getBoundingSphere(),
                 boundingBox = queryParams.getBoundingBox(),
                 nameLike = queryParams.getString("nameLike"),
-                tags = queryParams.getStrings("tag")
+                tags = queryParams.getStrings("tag"),
+                polygon = queryParams.getPolygon()
         ).also { eventQueryOptions ->
             logger.info("Built $eventQueryOptions from $queryParams")
         }

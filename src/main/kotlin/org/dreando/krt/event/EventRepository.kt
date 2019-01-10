@@ -1,5 +1,6 @@
 package org.dreando.krt.event
 
+import org.springframework.data.mongodb.core.MongoOperations
 import org.springframework.data.mongodb.core.ReactiveMongoOperations
 import org.springframework.data.mongodb.core.query.Query
 import org.springframework.stereotype.Repository
@@ -7,30 +8,29 @@ import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
 
 @Repository
-class EventRepository(private val reactiveMongoOperations: ReactiveMongoOperations) {
+class EventRepository(private val mongoOperations: ReactiveMongoOperations,
+                      private val blockingMongoOperations: MongoOperations) {
 
     fun insert(events: List<Event>) {
-        reactiveMongoOperations
-                .insertAll(events)
-                .subscribe()
+        blockingMongoOperations.insertAll(events)
     }
 
     fun insert(event: Event) {
-        reactiveMongoOperations
+        mongoOperations
                 .insert(event)
                 .subscribe()
     }
 
     fun find(eventQueryOptions: EventQueryOptions): Flux<Event> {
-        return reactiveMongoOperations.find(sortPageableCriteriaQuery(eventQueryOptions), Event::class.java)
+        return mongoOperations.find(sortPageableCriteriaQueryOf(eventQueryOptions), Event::class.java)
     }
 
     fun count(eventQueryOptions: EventQueryOptions): Mono<Long> {
-        return reactiveMongoOperations.count(criteriaQuery(eventQueryOptions), Event::class.java)
+        return mongoOperations.count(criteriaQueryOf(eventQueryOptions), Event::class.java)
     }
 
-    private fun sortPageableCriteriaQuery(eventQueryOptions: EventQueryOptions): Query {
-        return criteriaQuery(eventQueryOptions).apply {
+    private fun sortPageableCriteriaQueryOf(eventQueryOptions: EventQueryOptions): Query {
+        return criteriaQueryOf(eventQueryOptions).apply {
             eventQueryOptions.sort?.let {
                 this.with(it)
             }
@@ -40,7 +40,7 @@ class EventRepository(private val reactiveMongoOperations: ReactiveMongoOperatio
         }
     }
 
-    private fun criteriaQuery(eventQueryOptions: EventQueryOptions): Query {
+    private fun criteriaQueryOf(eventQueryOptions: EventQueryOptions): Query {
         return Query().apply {
             eventQueryOptions.criteria().forEach { criteria ->
                 this.addCriteria(criteria)

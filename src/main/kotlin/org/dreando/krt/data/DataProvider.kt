@@ -7,8 +7,12 @@ import org.slf4j.LoggerFactory
 import org.springframework.context.annotation.Profile
 import org.springframework.data.mongodb.core.geo.GeoJsonPoint
 import org.springframework.stereotype.Component
+import java.time.LocalDate
+import java.time.Month
+import java.time.temporal.ChronoUnit
 import java.util.*
 import javax.annotation.PostConstruct
+
 
 @Component
 @Profile("init-db")
@@ -24,21 +28,24 @@ class DataProvider(private val eventRepository: EventRepository) {
     private val centerY: Double = 19.4555023
     private val radiusMeters: Int = 1000 * 1000
 
-    private val chunkSize = 20000
-    private val recordsToInsert = 1000000
+    private val chunkSize = 10000
+    private val recordsToInsert = 1000 * 1000 * 10
 
     @PostConstruct
     fun init() {
-        logger.info("Adding some test data to mongo")
         this.initRepo()
     }
 
     private fun initRepo() {
-        IntRange(1, recordsToInsert).map { index ->
+        val chunks = recordsToInsert / chunkSize
+        logger.info("Going to attempt insertion of $chunks chunks, $chunkSize items each.")
+        val events = IntRange(1, recordsToInsert).map { index ->
             buildEvent(index)
-        }.chunked(chunkSize).forEach { chunk ->
+        }
+        logger.info("Created ${events.size} events, now the insertion.")
+        events.chunked(chunkSize).forEachIndexed { index, chunk ->
+            logger.info("Inserted chunk $index/$chunks of $chunkSize items")
             eventRepository.insert(chunk)
-            logger.info("Inserted chunk of $chunkSize items")
         }
     }
 
@@ -46,7 +53,9 @@ class DataProvider(private val eventRepository: EventRepository) {
         return Event(
                 name = "Event-$index",
                 tags = randomTags(),
-                point = randomGeoPoint()
+                point = randomGeoPoint(),
+                lastsFrom = randomDate(LocalDate.of(2017, Month.JANUARY, 1), LocalDate.of(2018, Month.JANUARY, 1)),
+                lastsTo = randomDate(LocalDate.of(2018, Month.JANUARY, 2), LocalDate.of(2019, Month.JANUARY, 1))
         )
     }
 
@@ -67,6 +76,11 @@ class DataProvider(private val eventRepository: EventRepository) {
         val foundLatitude = y + centerY
 
         return GeoJsonPoint(foundLongitude, foundLatitude)
+    }
+
+    fun randomDate(from: LocalDate, to: LocalDate): LocalDate {
+        val daysTo = ChronoUnit.DAYS.between(from, to)
+        return from.plusDays(random.nextInt(daysTo.toInt() + 1).toLong())
     }
 
     private fun randomTags(): List<Tag> {
